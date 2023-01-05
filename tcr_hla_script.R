@@ -118,10 +118,11 @@ disease_label <- ra_hv_sig %>%
   dplyr::select(subject_id, disease) %>% 
   unique()
 
+intersect(hla_label$subject_id, disease_label$subject_id)
+# on a bien les mêmes patients dans les deux labels
 # pour l'annotation 19 genotype pour DRB11 et 
 # 2 genotypes pour DPA11
 dplyr::select(subject_id, DRB11, DPA11)
-# commencer par créer une dtf qui sera ensuite transformé en matrix
 
 
 test <- sapply(unique(hm$cdr3aa), function(x) str_count(hm$cdr3aa,x))
