@@ -88,7 +88,6 @@ test_2_bis <- hm_1[filter,]["32D0"]
 identical(rownames(test_2), rownames(test_2_bis))
 all(test_2$Freq == test_2_bis$FD47)
 
-
 # cas si nom des gènes commence par des chiffres (ou si on aime pas dplyr) 
 subject <- rownames(hm_1)
 filter <- subject[hm_1$"32D0" != 0]
@@ -116,7 +115,8 @@ hla_label <- hla_genotypes %>%
 
 disease_label <- ra_hv_sig %>% 
   dplyr::filter(subject_id %in% as.character(hm$Var2)) %>% 
-  dplyr::select(subject_id, disease)
+  dplyr::select(subject_id, disease) %>% 
+  unique()
 
 # pour l'annotation 19 genotype pour DRB11 et 
 # 2 genotypes pour DPA11
