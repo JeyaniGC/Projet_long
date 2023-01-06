@@ -122,32 +122,23 @@ intersect(hla_label$subject_id, disease_label$subject_id)
 # on a bien les mêmes patients dans les deux labels
 # pour l'annotation 19 genotype pour DRB11 et 
 # 2 genotypes pour DPA11
-dplyr::select(subject_id, DRB11, DPA11)
 
+# Heatmap
+ha = HeatmapAnnotation(Category_HLA= ra_sig_hla$label_hla,col = list(Category_HLA = c("1" =  "red", "0" = "blue")))
+jpeg(filename="Heatmap.jpeg",width =1000, height =1000,quality=100)
+hm_plot <-Heatmap(hm_2,
+             name="expression",
+             show_column_names=FALSE,
+             # top_annotation=ha,
+             show_row_dend=TRUE,
+             show_column_dend=TRUE,
+             cluster_rows=TRUE,
+             cluster_columns=TRUE,
+             column_title="Signature")
+hm_plot
+dev.off()
 
-test <- sapply(unique(hm$cdr3aa), function(x) str_count(hm$cdr3aa,x))
-test<-as.data.frame(test)
-
-hm_count <- hm %>% 
-  count(cdr3aa, subject_id, name = "count")
-
-# preparer la matrice de donnes pour lheatmap()
-hm_mat <- matrix(0, length(unique(ra_hv_sig$cdr3aa)),
-                 length(unique(ra_hv_sig$subject_id)))
-
-rownames(hm_mat) <- unique(ra_hv_sig$cdr3aa)
-colnames(hm_mat) <- unique(ra_hv_sig$subject_id)
-count_mat <- ra_hv_sig %>% 
-  group_by(cdr3aa, subject_id) %>% 
-  mutate(count = n())
-
-
-county <- ra_hv_sig %>% 
-  mutate(count_sig= count(cdr3aa))
-
-
-
-
+# faire la même chose pour T1D
 t1d_sig <- tcr_sig %>% 
   dplyr::filter(cell_subset == "CD4_Teff", disease == "T1D",
                 signature_type == "enriched")
