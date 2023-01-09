@@ -111,12 +111,14 @@ hm_2 <- as.matrix(hm_1)
 
 hla_label <- hla_genotypes %>% 
   dplyr::filter(subject_id %in% as.character(hm$Var2)) %>% 
-  dplyr::select(subject_id, DRB11, DPA11)
+  dplyr::select(subject_id, DRB11, DPA11) %>% 
+  arrange(subject_id)
 
 disease_label <- ra_hv_sig %>% 
   dplyr::filter(subject_id %in% as.character(hm$Var2)) %>% 
   dplyr::select(subject_id, disease) %>% 
-  unique()
+  unique() %>% 
+  arrange(subject_id)
 
 intersect(hla_label$subject_id, disease_label$subject_id)
 # on a bien les mêmes patients dans les deux labels
@@ -124,17 +126,21 @@ intersect(hla_label$subject_id, disease_label$subject_id)
 # 2 genotypes pour DPA11
 
 # Heatmap
-ha = HeatmapAnnotation(Category_HLA= ra_sig_hla$label_hla,col = list(Category_HLA = c("1" =  "red", "0" = "blue")))
+
+ha <-  HeatmapAnnotation(disease= disease_label$disease, 
+                         control = hla_label$DPA11, 
+                         target = hla_label$DRB11)
+ha_1 <- HeatmapAnnotation(control = hla_label$DPA11)
+
 jpeg(filename="Heatmap.jpeg",width =1000, height =1000,quality=100)
 hm_plot <-Heatmap(hm_2,
              name="expression",
              show_column_names=FALSE,
-             # top_annotation=ha,
+             top_annotation=ha,
              show_row_dend=TRUE,
              show_column_dend=TRUE,
              cluster_rows=TRUE,
-             cluster_columns=TRUE,
-             column_title="Signature")
+             cluster_columns=TRUE)
 hm_plot
 dev.off()
 
