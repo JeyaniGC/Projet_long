@@ -7,6 +7,7 @@ library(dplyr)
 library(readr)
 suppressPackageStartupMessages(library(mixOmics))
 suppressPackageStartupMessages(library(ComplexHeatmap))
+suppressPackageStartupMessages(library(circlize))
 
 # Load dataset
 hla_genes <- read_csv("data/HLA_genes.csv")
@@ -34,13 +35,11 @@ tcr_hv_sig <- tcr_hv %>%
   dplyr::filter(cdr3aa %in% ra_sig$cdr3aa)
 
 # voir si tcr_hv_sig et tcr_ra_sig ont les mêmes patients 
-
-intersect(tcr_hv_sig$sample_id, tcr_ra_sig$sample_id)
+length(intersect(tcr_hv_sig$sample_id, tcr_ra_sig$sample_id))
 # on voit que les patients sont bien uniques en fonction de la maladie
 
 # merge les deux dtf pour la hm 
 ra_hv_sig <- bind_rows(tcr_ra_sig, tcr_hv_sig)
-
 
 # faire le lien sample_id et subject_id
 meta_sig <- tcr_meta %>% 
@@ -52,11 +51,11 @@ ra_hv_sig <- left_join(ra_hv_sig, meta_sig, by= "sample_id")
 ra_hv_sig <- ra_hv_sig %>% 
   dplyr::filter(subject_id %in% hla_genotypes$subject_id) 
 
-hm <- data.frame(table(ra_hv_sig$cdr3aa, ra_hv_sig$subject_id))
-hm_1 <- reshape(hm,direction="wide",timevar="Var2",idvar="Var1") %>% 
+hm_RAvsHV <- data.frame(table(ra_hv_sig$cdr3aa, ra_hv_sig$subject_id))
+hm_1_RAvsHV <- reshape(hm_RAvsHV,direction="wide",timevar="Var2",idvar="Var1") %>% 
   column_to_rownames("Var1")
 
-names(hm_1) <- gsub(x = names(hm_1), pattern = "Freq\\.", replacement = "")
+names(hm_1_RAvsHV) <- gsub(x = names(hm_1_RAvsHV), pattern = "Freq\\.", replacement = "")
 
 # Verification des count sur 2 colonnes 
 
@@ -67,7 +66,7 @@ test_1 <- ra_hv_sig %>%
   as.data.frame() %>% 
   column_to_rownames(var="cdr3aa")
 
-test_1_bis <- hm_1 %>% 
+test_1_bis <- hm_1_RAvsHV %>% 
   dplyr::select(FD47) %>% 
   dplyr::filter(FD47 != 0)
 
@@ -81,25 +80,19 @@ test_2 <- ra_hv_sig %>%
   as.data.frame() %>% 
   column_to_rownames(var="cdr3aa")
 
-subject <- rownames(hm_1)
-filter <- subject[hm_1$"32D0" != 0]
-test_2_bis <- hm_1[filter,]["32D0"]
-
-identical(rownames(test_2), rownames(test_2_bis))
-all(test_2$Freq == test_2_bis$FD47)
-
 # cas si nom des gènes commence par des chiffres (ou si on aime pas dplyr) 
-subject <- rownames(hm_1)
-filter <- subject[hm_1$"32D0" != 0]
-test_2_bis <- hm_1[filter, ]["32D0"]
+subject <- rownames(hm_1_RAvsHV)
+filter <- subject[hm_1_RAvsHV$"32D0" != 0]
+test_2_bis <- hm_1_RAvsHV[filter,]["32D0"]
 
 identical(rownames(test_2), rownames(test_2_bis))
-all(test_2$Freq == test_2_bis$FE48)
+all(test_2$Freq == test_2_bis$`32D0`)
+
 
 # modifier hm_1 
 # changer toute les valeurs > 1 par des 1
-for(i in 1:ncol(hm_1)) {       
-  hm_1[,i] <- ifelse(hm_1[,i] > 1, 1, hm_1[, i])
+for(i in 1:ncol(hm_1_RAvsHV)) {       
+  hm_1_RAvsHV[,i] <- ifelse(hm_1_RAvsHV[,i] > 1, 1, hm_1_RAvsHV[, i])
 }
 
 # récupérer le nom des sample_id dans tcr_ra et tcr_hv 
@@ -107,67 +100,173 @@ for(i in 1:ncol(hm_1)) {
 # discriminer en fonction des patient ou des sig ?  
 
 # faire la matrice pour la heatmap
-hm_2 <- as.matrix(hm_1)
+hm_2_RAvsHV <- as.matrix(hm_1_RAvsHV)
 
-hla_label <- hla_genotypes %>% 
-  dplyr::filter(subject_id %in% as.character(hm$Var2)) %>% 
+hla_RAvsHV_label <- hla_genotypes %>% 
+  dplyr::filter(subject_id %in% as.character(hm_RAvsHV$Var2)) %>% 
   dplyr::select(subject_id, DRB11, DPA11) %>% 
   arrange(subject_id)
 
-disease_label <- ra_hv_sig %>% 
-  dplyr::filter(subject_id %in% as.character(hm$Var2)) %>% 
+disease_RAvsHV_label <- ra_hv_sig %>% 
+  dplyr::filter(subject_id %in% as.character(hm_RAvsHV$Var2)) %>% 
   dplyr::select(subject_id, disease) %>% 
   unique() %>% 
   arrange(subject_id)
 
-intersect(hla_label$subject_id, disease_label$subject_id)
+length(intersect(hla_RAvsHV_label$subject_id, disease_RAvsHV_label$subject_id))
 # on a bien les mêmes patients dans les deux labels
 # pour l'annotation 19 genotype pour DRB11 et 
 # 2 genotypes pour DPA11
 
-# Heatmap
+# Heatmap de RAvsHV
 
-ha <-  HeatmapAnnotation(disease= disease_label$disease, 
-                         control = hla_label$DPA11, 
-                         target = hla_label$DRB11)
-ha_1 <- HeatmapAnnotation(control = hla_label$DPA11)
+ha <-  HeatmapAnnotation(disease= disease_RAvsHV_label$disease, 
+                         control = hla_RAvsHV_label$DPA11, 
+                         target = hla_RAvsHV_label$DRB11, 
+                         col = list(disease = c("RA" = "red", "HV" = "blue"), 
+                                    control = c("DPA1*01:03:01" = "sea green", "DPA1*02:01:01" = "coral")))
 
-jpeg(filename="Heatmap.jpeg",width =1000, height =1000,quality=100)
-hm_plot <-Heatmap(hm_2,
-             name="expression",
+
+pdf("Heatmap_RAvsHV.pdf",width =50, height =50)
+hm_plot_RAvsHV <-Heatmap(hm_2_RAvsHV,
+             name="Signature",
              show_column_names=FALSE,
              top_annotation=ha,
+             col = colorRamp2(c(0, 1), c("azure3", "darkcyan")),
              show_row_dend=TRUE,
              show_column_dend=TRUE,
              cluster_rows=TRUE,
-             cluster_columns=TRUE)
-hm_plot
+             cluster_columns=TRUE, 
+             column_km = 2,
+             row_km = 1,
+             row_names_gp = gpar(fontsize = 10))
+hm_plot_RAvsHV
 dev.off()
+
 
 # faire la même chose pour T1D
 t1d_sig <- tcr_sig %>% 
   dplyr::filter(cell_subset == "CD4_Teff", disease == "T1D",
                 signature_type == "enriched")
 
-ra_sig_meta <- tcr_meta %>% 
-  left_join(ra_sig)
+# faire correspondre les patients tcr_t1d ayant ces sig
+tcr_t1d_sig <- tcr_t1d %>% 
+  dplyr::filter(cdr3aa %in% t1d_sig$cdr3aa)
 
-t1d_sig_meta <- tcr_meta %>% 
-  left_join(t1d_sig)
+# faire la même chose avec patient HV
+hv_t1d_sig <- tcr_hv %>% 
+  dplyr::filter(cdr3aa %in% t1d_sig$cdr3aa)
 
-ra_sig_hla <- ra_sig_meta %>% 
-  left_join(hla_genes)
+# voir si tcr_hv_sig et tcr_ra_sig ont les mêmes patients 
+length(intersect(hv_t1d_sig$sample_id, tcr_t1d_sig$sample_id))
+# on voit que les patients sont bien uniques en fonction de la maladie
 
-ra_sig_hla$label_hla <- ifelse(ra_sig_hla$subject_id %in% hla_genes$subject_id, 1, 0)
+# merge les deux dtf pour la hm 
+t1d_hv_sig <- bind_rows(tcr_t1d_sig, hv_t1d_sig)
 
-ra_sig_hm <- ra_sig_hla %>% 
-  dplyr::select(subject_id, DRA1, DRA2, label_hla) %>% 
-  as.matrix()
+# faire le lien sample_id et subject_id
+meta_sig <- tcr_meta %>% 
+  dplyr::select(subject_id, sample_id)
 
-# pour tout les genes
-ra_sig_hm <- ra_sig_hla %>% 
-  dplyr::select(subject_id, 20:80) %>% 
-  as.matrix()
+t1d_hv_sig <- left_join(t1d_hv_sig, meta_sig, by= "sample_id")
+
+# récupérer les patients uniquement dans hla_genes
+t1d_hv_sig <- t1d_hv_sig %>% 
+  dplyr::filter(subject_id %in% hla_genotypes$subject_id) 
+
+hm_T1DvsHV <- data.frame(table(t1d_hv_sig$cdr3aa, t1d_hv_sig$subject_id))
+hm_1_T1DvsHV <- reshape(hm_T1DvsHV,direction="wide",timevar="Var2",idvar="Var1") %>% 
+  column_to_rownames("Var1")
+
+names(hm_1_T1DvsHV) <- gsub(x = names(hm_1_T1DvsHV), pattern = "Freq\\.", replacement = "")
+
+# Verification des count sur 2 colonnes 
+
+test_1 <- t1d_hv_sig %>% 
+  filter(subject_id == "FFC0") %>% 
+  dplyr::select(cdr3aa) %>% 
+  table() %>% 
+  as.data.frame() %>% 
+  column_to_rownames(var="cdr3aa")
+
+test_1_bis <- hm_1_T1DvsHV %>% 
+  dplyr::select(FFC0) %>% 
+  dplyr::filter(FFC0 != 0)
+
+identical(rownames(test_1), rownames(test_1_bis))
+all(test_1$Freq == test_1_bis$FD47)
+
+test_2 <- t1d_hv_sig %>% 
+  dplyr::filter(subject_id == "71B1") %>% 
+  dplyr::select(cdr3aa) %>% 
+  table() %>% 
+  as.data.frame() %>% 
+  column_to_rownames(var="cdr3aa")
+
+# cas si nom des gènes commence par des chiffres (ou si on aime pas dplyr) 
+subject <- rownames(hm_1_T1DvsHV)
+filter <- subject[hm_1_T1DvsHV$"71B1" != 0]
+test_2_bis <- hm_1_T1DvsHV[filter,]["71B1"]
+
+identical(rownames(test_2), rownames(test_2_bis))
+all(test_2$Freq == test_2_bis$`71B1`)
+
+# modifier hm_1 
+# changer toute les valeurs > 1 par des 1
+for(i in 1:ncol(hm_1_T1DvsHV)) {       
+  hm_1_T1DvsHV[,i] <- ifelse(hm_1_T1DvsHV[,i] > 1, 1, hm_1_T1DvsHV[, i])
+}
+
+# faire la matrice pour la heatmap
+hm_2_T1DvsHV <- as.matrix(hm_1_T1DvsHV)
+
+hla_T1D_label <- hla_genotypes %>% 
+  dplyr::filter(subject_id %in% as.character(hm_T1DvsHV$Var2)) %>% 
+  dplyr::select(subject_id, DRB11, DPA11) %>% 
+  arrange(subject_id)
+
+disease_T1D_label <- t1d_hv_sig %>% 
+  dplyr::filter(subject_id %in% as.character(hm_T1DvsHV$Var2)) %>% 
+  dplyr::select(subject_id, disease) %>% 
+  unique() %>% 
+  arrange(subject_id)
+
+length(intersect(hla_T1D_label$subject_id, disease_T1D_label$subject_id))
+# on a bien les mêmes patients dans les deux labels
+# pour l'annotation 19 genotype pour DRB11 et 
+# 2 genotypes pour DPA11
+
+# Heatmap de RAvsHV
+
+ha_T1DvsHV <-  HeatmapAnnotation(disease= disease_T1D_label$disease, 
+                         control = hla_T1D_label$DPA11, 
+                         target = hla_T1D_label$DRB11, 
+                         col = list(disease = c("T1D" = "red", "HV" = "blue"), 
+                                    control = c("DPA1*01:03:01" = "sea green", "DPA1*02:01:01" = "coral",
+                                                "DPA1*02:01:02" = "purple3")))
+
+
+pdf("Heatmap_T1DvsHV.pdf",width =50, height =50)
+hm_plot_T1DvsHV <-Heatmap(hm_2_T1DvsHV,
+                         name="Signature",
+                         show_column_names=FALSE,
+                         top_annotation=ha_T1DvsHV,
+                         col = colorRamp2(c(0, 1), c("azure3", "darkcyan")),
+                         show_row_dend=TRUE,
+                         show_column_dend=TRUE,
+                         cluster_rows=TRUE,
+                         cluster_columns=TRUE, 
+                         column_km = 2,
+                         row_km = 1,
+                         row_names_gp = gpar(fontsize = 10))
+hm_plot_T1DvsHV
+dev.off()
+
+
+
+
+
+
 
 rownames(ra_sig_hm) <- ra_sig_hla$subject_id
 ra_sig_hm <-ra_sig_hm[, -1]
