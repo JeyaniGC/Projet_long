@@ -18,10 +18,11 @@ tcr_t1d <- read_csv("data/TCR_data_T1D.csv")
 tcr_meta <- read_csv("data/TCR_metadata.csv")
 tcr_sig <- read_csv("data/TCR_signature.csv")
 
+# Pour les Teff
 # select alleles HLA class II DRB11, control : DA11 
 
 # Analyse RAvsHV
-# dans tcr_sig prendre les Teff, RA, enriched
+# tcr_sig prendre les Teff, RA, enriched
 ra_sig <- tcr_sig %>% 
   dplyr::filter(cell_subset == "CD4_Teff", disease == "RA",
                 signature_type == "enriched")
@@ -236,7 +237,7 @@ length(intersect(hla_T1D_label$subject_id, disease_T1D_label$subject_id))
 # pour l'annotation 19 genotype pour DRB11 et 
 # 2 genotypes pour DPA11
 
-# Heatmap de RAvsHV
+# Heatmap de T1DvsHV
 
 ha_T1DvsHV <-  HeatmapAnnotation(disease= disease_T1D_label$disease, 
                          control = hla_T1D_label$DPA11, 
@@ -263,46 +264,7 @@ hm_plot_T1DvsHV
 dev.off()
 
 
-
-
-
-
-
-rownames(ra_sig_hm) <- ra_sig_hla$subject_id
-ra_sig_hm <-ra_sig_hm[, -1]
-
-t1d_sig_hla <- t1d_sig_meta %>% 
-  left_join(hla_genes_II)
-
-# ra_sig_real <-  subset(ra_sig_hla, ra_sig_hla$subject_id %in% hla_genes_II$subject_id) 
-# t1d_sig_real <-  subset(t1d_sig_hla, t1d_sig_hla$subject_id %in% hla_genes_II$subject_id) 
-# il faut garder tout les sujet ou tout les sample_id 
-
-# Heatmap
-ha = HeatmapAnnotation(Category_HLA= ra_sig_hla$label_hla,col = list(Category_HLA = c("1" =  "red", "0" = "blue")))
-jpeg(filename="Heatmap.jpeg",width =1000, height =1000,quality=100)
-hm <-Heatmap(hm_2,
-             name="expression",
-             show_column_names=FALSE,
-             # top_annotation=ha,
-             show_row_dend=TRUE,
-             show_column_dend=TRUE,
-             cluster_rows=TRUE,
-             cluster_columns=TRUE,
-             column_title="Signature")
-hm
-dev.off()
-
-
-# faire le lien HLA/TCR
-ra_meta <- tcr_meta %>% 
-  left_join(tcr_ra, by = "sample_id")
-
-hv_meta <- tcr_meta %>% 
-  left_join(tcr_hv, by = "sample_id")
-
-t1d_meta <- tcr_meta %>% 
-  left_join(tcr_t1d, by = "sample_id")
+# Pour les Treg
 
 # Visualiser distribution de HLA
 # PCA 
