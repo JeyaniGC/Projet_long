@@ -133,6 +133,16 @@ hm_plot_RAvsHV <-Heatmap(hm_2_RAvsHV,
 hm_plot_RAvsHV
 dev.off()
 
+disease_RA <- ra_hv_sig %>% 
+  dplyr::filter(subject_id %in% as.character(hm_RAvsHV$Var2)) %>% 
+  dplyr::filter(disease == "RA") %>% 
+  unique() %>% 
+  arrange(subject_id)
+
+hla_RA <- hla_genotypes %>% 
+  dplyr::filter(subject_id %in% disease_RA$subject_id) %>% 
+  dplyr::select(DPA11, DRB11)
+
 # Analysis T1DvsHV
 t1d_sig <- tcr_sig %>% 
   dplyr::filter(cell_subset == "CD4_Treg", disease == "T1D",
@@ -234,3 +244,18 @@ hm_plot_T1DvsHV <-Heatmap(hm_2_T1DvsHV,
                           row_names_gp = gpar(fontsize = 10))
 hm_plot_T1DvsHV
 dev.off()
+
+disease_T1D <- t1d_hv_sig %>% 
+  dplyr::filter(subject_id %in% as.character(hm_T1DvsHV$Var2)) %>% 
+  dplyr::filter(disease == "T1D") %>% 
+  unique() %>% 
+  arrange(subject_id)
+
+hla_T1D <- hla_genotypes %>% 
+  dplyr::filter(subject_id %in% disease_T1D$subject_id) %>% 
+  dplyr::select(DPA11, DRB11)
+
+
+
+
+
